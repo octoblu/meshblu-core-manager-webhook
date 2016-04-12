@@ -9,7 +9,7 @@ class WebhookManager
     throw new Error '"uuidAliasResolver" is required' unless @uuidAliasResolver?
 
   enqueueForReceived: ({uuid, route, rawData, type}, callback) =>
-    lastHop = _.first route
+    lastHop = _.last route
     return callback new Error('Missing last hop') unless lastHop?
     {from, to} = lastHop
 
