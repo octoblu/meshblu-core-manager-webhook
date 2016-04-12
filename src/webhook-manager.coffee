@@ -18,14 +18,12 @@ class WebhookManager
       {from, to, uuid} = results
       return callback() unless from == to
 
-      @datastore.findOne {uuid}, (error, device) =>
-        return callback error if error?
-        return callback new Error('Device not found') unless device?
+      @_enqueue {uuid, route, rawData, type}, callback
 
-        forwarders = _.get device.meshblu?.forwarders, type
-
-        webhooks = _.filter forwarders, type: 'webhook'
-        async.eachSeries webhooks, async.apply(@_createRequest, uuid, route, rawData, type), callback
+  enqueueForSent: ({uuid, route, rawData, type}, callback) =>
+    @uuidAliasResolver.resolve uuid, (error, uuid) =>
+      return callback error if error?
+      @_enqueue {uuid, route, rawData, type}, callback
 
   _createRequest: (uuid, route, rawData, type, webhook, callback) =>
     @jobManager.createRequest 'request', {
@@ -39,6 +37,16 @@ class WebhookManager
         options: webhook
       rawData: rawData
     }, callback
+
+  _enqueue: ({uuid, route, rawData, type}, callback) =>
+    @datastore.findOne {uuid}, (error, device) =>
+      return callback error if error?
+      return callback new Error('Device not found') unless device?
+
+      forwarders = _.get device.meshblu?.forwarders, type
+      webhooks = _.filter forwarders, type: 'webhook'
+
+      async.eachSeries webhooks, async.apply(@_createRequest, uuid, route, rawData, type), callback
 
   _resolveUuids: ({from, to, uuid}, callback) =>
     async.series {
