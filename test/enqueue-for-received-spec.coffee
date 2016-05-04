@@ -4,6 +4,8 @@ mongojs        = require 'mongojs'
 redis          = require 'fakeredis'
 RedisNS        = require '@octoblu/redis-ns'
 uuid           = require 'uuid'
+{beforeEach, describe, it, sinon} = global
+{expect} = require 'chai'
 WebhookManager = require '../'
 
 describe '->enqueueForReceived', ->
@@ -50,6 +52,7 @@ describe '->enqueueForReceived', ->
         @sut.enqueueForReceived {
           uuid: 'uuid'
           route: [{type: 'message.received', to: 'to', from: 'from'}]
+          forwardedRoutes: []
           rawData: '{}'
           type: 'message.received'
         }, done
@@ -69,6 +72,7 @@ describe '->enqueueForReceived', ->
         @sut.enqueueForReceived {
           uuid: 'uuid'
           route: [{type: 'message.received', to: 'to', from: 'from'}]
+          forwardedRoutes: []
           rawData: '{}'
           type: 'message.received'
         }, done
@@ -76,8 +80,7 @@ describe '->enqueueForReceived', ->
       it 'should enqueue a job to deliver the webhook', (done) ->
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
-          delete request?.metadata?.responseId
-          expect(request).to.deep.equal {
+          expect(request).to.containSubset {
             metadata:
               jobType: 'DeliverWebhook'
               auth:
@@ -86,6 +89,7 @@ describe '->enqueueForReceived', ->
               toUuid: 'uuid'
               messageType: 'message.received'
               route: [{type: "message.received", from: "from", to: "to"}]
+              forwardedRoutes: []
               options:
                 type:   'webhook'
                 url:    'https://google.com'

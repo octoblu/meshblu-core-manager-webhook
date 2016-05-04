@@ -8,7 +8,7 @@ class WebhookManager
     throw new Error '"jobManager" is required' unless @jobManager?
     throw new Error '"uuidAliasResolver" is required' unless @uuidAliasResolver?
 
-  enqueueForReceived: ({uuid, route, rawData, type}, callback) =>
+  enqueueForReceived: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
     lastHop = _.last route
     return callback new Error('Missing last hop') unless lastHop?
     {from, to} = lastHop
@@ -17,15 +17,14 @@ class WebhookManager
       return callback error if error?
       {from, to, uuid} = results
       return callback() unless from == to
+      @_enqueue {forwardedRoutes, type, rawData, route, uuid}, callback
 
-      @_enqueue {uuid, route, rawData, type}, callback
-
-  enqueueForSent: ({uuid, route, rawData, type}, callback) =>
+  enqueueForSent: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
     @uuidAliasResolver.resolve uuid, (error, uuid) =>
       return callback error if error?
-      @_enqueue {uuid, route, rawData, type}, callback
+      @_enqueue {forwardedRoutes, type, rawData, route, uuid}, callback
 
-  _createRequest: (uuid, route, rawData, type, webhook, callback) =>
+  _createRequest: ({forwardedRoutes, type, rawData, route, uuid}, webhook, callback) =>
     @jobManager.createRequest 'request', {
       metadata:
         jobType: 'DeliverWebhook'
@@ -34,11 +33,12 @@ class WebhookManager
         toUuid:   uuid
         messageType: type
         route: route
+        forwardedRoutes: forwardedRoutes
         options: webhook
       rawData: rawData
     }, callback
 
-  _enqueue: ({uuid, route, rawData, type}, callback) =>
+  _enqueue: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
     @datastore.findOne {uuid}, (error, device) =>
       return callback error if error?
       return callback new Error('Device not found') unless device?
@@ -46,7 +46,8 @@ class WebhookManager
       forwarders = _.get device.meshblu?.forwarders, type
       webhooks = _.filter forwarders, type: 'webhook'
 
-      async.eachSeries webhooks, async.apply(@_createRequest, uuid, route, rawData, type), callback
+      createRequest = async.apply @_createRequest, {forwardedRoutes, type, rawData, route, uuid}
+      async.eachSeries webhooks, createRequest, callback
 
   _resolveUuids: ({from, to, uuid}, callback) =>
     async.series {

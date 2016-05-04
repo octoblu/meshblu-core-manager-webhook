@@ -4,6 +4,8 @@ mongojs        = require 'mongojs'
 redis          = require 'fakeredis'
 RedisNS        = require '@octoblu/redis-ns'
 uuid           = require 'uuid'
+{beforeEach, describe, it, sinon} = global
+{expect} = require 'chai'
 WebhookManager = require '../'
 
 describe '->enqueueForSent', ->
@@ -50,6 +52,7 @@ describe '->enqueueForSent', ->
         @sut.enqueueForSent {
           uuid: 'uuid'
           route: [{type: 'message.sent', to: 'to', from: 'from'}]
+          forwardedRoutes: []
           rawData: '{}'
           type: 'message.sent'
         }, done
@@ -57,8 +60,7 @@ describe '->enqueueForSent', ->
       it 'should enqueue a job to deliver the webhook', (done) ->
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
-          delete request?.metadata?.responseId
-          expect(request).to.deep.equal {
+          expect(request).to.containSubset {
             metadata:
               jobType: 'DeliverWebhook'
               auth:
@@ -67,6 +69,7 @@ describe '->enqueueForSent', ->
               toUuid: 'uuid'
               messageType: 'message.sent'
               route: [{type: "message.sent", from: "from", to: "to"}]
+              forwardedRoutes: []
               options:
                 type:   'webhook'
                 url:    'https://google.com'
@@ -84,6 +87,7 @@ describe '->enqueueForSent', ->
         @sut.enqueueForSent {
           uuid: 'uuid'
           route: [{type: 'message.sent', to: 'to', from: 'from'}]
+          forwardedRoutes: []
           rawData: '{}'
           type: 'message.sent'
         }, done
@@ -91,8 +95,7 @@ describe '->enqueueForSent', ->
       it 'should enqueue a job to deliver the webhook', (done) ->
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
-          delete request?.metadata?.responseId
-          expect(request).to.deep.equal {
+          expect(request).to.containSubset {
             metadata:
               jobType: 'DeliverWebhook'
               auth:
@@ -101,6 +104,7 @@ describe '->enqueueForSent', ->
               toUuid: 'uuid'
               messageType: 'message.sent'
               route: [{type: "message.sent", from: "from", to: "to"}]
+              forwardedRoutes: []
               options:
                 type:   'webhook'
                 url:    'https://google.com'
