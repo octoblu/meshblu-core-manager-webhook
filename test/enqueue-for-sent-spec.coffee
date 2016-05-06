@@ -10,11 +10,12 @@ WebhookManager = require '../'
 
 describe '->enqueueForSent', ->
   beforeEach (done) ->
+    database = mongojs 'meshblu-core-manager-webhook', ['devices']
     @datastore = new Datastore
-      database: mongojs('meshblu-core-manager-webhook')
+      database: database
       collection: 'devices'
 
-    @datastore.remove done
+    database.devices.remove done
 
   beforeEach ->
     @redisKey = uuid.v1()

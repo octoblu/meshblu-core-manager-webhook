@@ -39,7 +39,10 @@ class WebhookManager
     }, callback
 
   _enqueue: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
-    @datastore.findOne {uuid}, (error, device) =>
+    projection =
+      uuid: true
+      'meshblu.forwarders': true
+    @datastore.findOne {uuid}, projection, (error, device) =>
       return callback error if error?
       return callback new Error('Device not found') unless device?
 
