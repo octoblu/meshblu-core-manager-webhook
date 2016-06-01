@@ -42,9 +42,13 @@ class WebhookManager
     projection =
       uuid: true
       'meshblu.forwarders': true
+
     @datastore.findOne {uuid}, projection, (error, device) =>
       return callback error if error?
-      return callback new Error('Device not found') unless device?
+      unless device?
+        error = new Error 'Device not found'
+        error.code = 404
+        return callback error
 
       forwarders = _.get device.meshblu?.forwarders, type
       webhooks = _.filter forwarders, type: 'webhook'
