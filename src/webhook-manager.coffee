@@ -17,12 +17,28 @@ class WebhookManager
       return callback error if error?
       {from, to, uuid} = results
       return callback() unless from == to
-      @_enqueue {forwardedRoutes, type, rawData, route, uuid}, callback
+      @_enqueueLookupDevice {forwardedRoutes, type, rawData, route, uuid}, callback
+
+  enqueueForReceivedUsingRawData: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
+    lastHop = _.last route
+    return callback new Error('Missing last hop') unless lastHop?
+    {from, to} = lastHop
+
+    @_resolveUuids {from, to, uuid}, (error, results) =>
+      return callback error if error?
+      {from, to, uuid} = results
+      return callback() unless from == to
+      @_enqueueUsingRawData {forwardedRoutes, type, rawData, route, uuid}, callback
 
   enqueueForSent: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
     @uuidAliasResolver.resolve uuid, (error, uuid) =>
       return callback error if error?
-      @_enqueue {forwardedRoutes, type, rawData, route, uuid}, callback
+      @_enqueueLookupDevice {forwardedRoutes, type, rawData, route, uuid}, callback
+
+  enqueueForSentUsingRawData: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
+    @uuidAliasResolver.resolve uuid, (error, uuid) =>
+      return callback error if error?
+      @_enqueueUsingRawData {forwardedRoutes, type, rawData, route, uuid}, callback
 
   _createRequest: ({forwardedRoutes, type, rawData, route, uuid}, webhook, callback) =>
     @jobManager.createRequest 'request', {
@@ -38,7 +54,7 @@ class WebhookManager
       rawData: rawData
     }, callback
 
-  _enqueue: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
+  _enqueueLookupDevice: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
     projection =
       uuid: true
       'meshblu.forwarders': true
@@ -50,11 +66,22 @@ class WebhookManager
         error.code = 404
         return callback error
 
-      forwarders = _.get device.meshblu?.forwarders, type
-      webhooks = _.filter forwarders, type: 'webhook'
+      @_enqueue {forwardedRoutes, type, rawData, route, uuid, device}, callback
 
-      createRequest = async.apply @_createRequest, {forwardedRoutes, type, rawData, route, uuid}
-      async.eachSeries webhooks, createRequest, callback
+  _enqueueUsingRawData: ({forwardedRoutes, type, rawData, route, uuid}, callback) =>
+    try
+      device = JSON.parse rawData
+    catch error
+      return callback error
+
+    @_enqueue {forwardedRoutes, type, rawData, route, uuid, device}, callback
+
+  _enqueue: ({forwardedRoutes, type, rawData, route, uuid, device}, callback) =>
+    forwarders = _.get device.meshblu?.forwarders, type
+    webhooks = _.filter forwarders, type: 'webhook'
+
+    createRequest = async.apply @_createRequest, {forwardedRoutes, type, rawData, route, uuid}
+    async.eachSeries webhooks, createRequest, callback
 
   _resolveUuids: ({from, to, uuid}, callback) =>
     async.series {

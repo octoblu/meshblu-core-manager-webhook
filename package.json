@@ -1,6 +1,6 @@
 {
   "name": "meshblu-core-manager-webhook",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Meshblu manager for message/configure/broadcast webhooks",
   "main": "index.js",
   "scripts": {
